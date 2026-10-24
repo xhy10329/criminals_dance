@@ -197,6 +197,21 @@ input{font:inherit}
 .pflyer .card.back{transform:rotateY(180deg)}
 .pflyer.only .card.back{transform:none}
 .card.incoming{visibility:hidden}
+.eyefly{position:fixed;left:0;top:0;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:var(--white);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);display:grid;place-items:center;z-index:17;pointer-events:none}
+.eyefly svg{width:46px;height:46px}
+.eyefly::after{content:"";position:absolute;right:-14px;bottom:-14px;width:22px;height:8px;border-radius:4px;background:var(--ink);transform:rotate(45deg)}
+.seat.peeked{background:#efe7ff;box-shadow:4px 4px 0 #8a6bff}
+.seat.peeked .mini{animation:lift .5s ease-in-out infinite alternate}
+.seat.peeked .mini:nth-child(2){animation-delay:.1s}.seat.peeked .mini:nth-child(3){animation-delay:.2s}.seat.peeked .mini:nth-child(4){animation-delay:.3s}
+@keyframes lift{from{transform:none}to{transform:translateY(-4px) rotate(-6deg)}}
+.card.watched{box-shadow:0 0 0 3px #b49cff,var(--shadow);animation:watched .6s ease-in-out infinite alternate}
+@keyframes watched{from{transform:none}to{transform:translateY(-4px)}}
+.flipwrap{position:relative;flex:none;width:100px;height:148px}
+.flipwrap>.card{position:absolute;inset:0;cursor:default}
+.flipwrap>.card.back{animation:fback .5s ease-in forwards;animation-delay:var(--d)}
+.flipwrap>.card.face{transform:scaleX(0);animation:fface .25s ease-out forwards;animation-delay:calc(var(--d) + .25s)}
+@keyframes fback{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(0);visibility:hidden}}
+@keyframes fface{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .card.fresh{animation:fresh 1.2s ease-out}
 @keyframes fresh{0%{box-shadow:0 0 0 4px var(--sun),5px 5px 0 var(--red)}100%{box-shadow:var(--shadow)}}
 .status.pass{background:var(--sun)!important}
@@ -246,7 +261,7 @@ input{font:inherit}
 
 @keyframes bob{0%,100%{transform:translate(-2px,-2px)}50%{transform:translate(-2px,-5px)}}
 .seat.on{animation:bob 1.2s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.card,.seat{transition:none}.seat.on,.seat.giving,.felt .status.pop,.card.fresh,.heap.land .card{animation:none}}
+@media (prefers-reduced-motion:reduce){.card,.seat{transition:none}.seat.on,.seat.giving,.felt .status.pop,.card.fresh,.heap.land .card,.seat.peeked .mini,.card.watched{animation:none}.flipwrap>.card.back{display:none}.flipwrap>.card.face{transform:none;animation:none}}
 @media (max-width:520px){.hero{grid-template-columns:1fr}.hero h1{font-size:44px}.fan{justify-self:center;width:200px;height:160px;order:-1}.fan .card{left:50px}}
 </style>
 </head>
@@ -382,7 +397,7 @@ const ORDER='FCDAXWGTIRN';
 const FULL={F:1,C:1,D:4,A:5,X:2,W:3,G:1,T:5,I:4,R:4,N:2};
 const SETUP={3:'FCDA',4:'FCDA',5:'FCDAX',6:'FCDAAX',7:'FCDAAXX',8:null};
 const AI_NAMES=['钢琴师','女伯爵','侍者','园丁','管家','船长','歌女'];
-const ANIM=1500,AI_DELAY=800,PASS_MS=1500;
+const ANIM=1500,AI_DELAY=800,PASS_MS=1500,PEEK_MS=1500;
 
 const $=s=>document.querySelector(s);
 const rnd=n=>Math.floor(Math.random()*n);
@@ -662,6 +677,7 @@ async function doPlay(p,idx,gen){
       log(['wit',p,t]);
       if(G.seats[p].kind==='a')kWitness(p,t);
       else G.peek[p]={id:++G.rid,t,h:G.hands[t].join('')};
+      push();await wait(PEEK_MS);if(stale())return;
       break;
     }
     case 'G':{
@@ -1027,7 +1043,7 @@ function renderLobby(L){
 }
 
 /* ---- game rendering ---- */
-let wasMyTurn=false,passing=null,freshIdx=-1,sel=-1,animState={gid:null,lastI:0},flying=null,lastPlayRect=null,lastHandKey='';
+let wasMyTurn=false,peeking=null,passing=null,freshIdx=-1,sel=-1,animState={gid:null,lastI:0},flying=null,lastPlayRect=null,lastHandKey='';
 const nameOf=s=>s===V.me?"你":esc(V.seats[s]?.nick||"?");
 function isMe(e){
   if(!V)return false;const me=V.me,t=e[1];
@@ -1078,7 +1094,8 @@ function setView(nv){
   // reset per-game state
   if(animState.gid!==V.gid){
     animState={gid:V.gid,lastI:V.log.reduce((m,e)=>Math.max(m,e[0]),0)};
-    flying=null;passing=null;freshIdx=-1;sel=-1;answered.clear();heapKey='';
+    flying=null;passing=null;peeking=null;freshIdx=-1;sel=-1;answered.clear();heapKey='';
+    document.querySelectorAll('.eyefly').forEach(f=>f.remove());
     document.querySelectorAll('.pflyer').forEach(f=>f.remove());
     if(V.hand&&!V.fd){const f=V.hand.indexOf('F');if(f>=0)sel=f}
     if(prev&&prev.gid!==V.gid)resetSheets();
@@ -1095,6 +1112,8 @@ function setView(nv){
       passing={kind:pass[1],pairs,out:okCard(out)?out:null,inc:okCard(inc)?inc:null,
         incIdx:okCard(inc)&&hand[hand.length-1]===inc?hand.length-1:-1,started:false};
     }
+    const wit=V.log.filter(e=>e[1]==='wit'&&e[0]>animState.lastI&&V.seats[e[2]]&&V.seats[e[3]]).pop();
+    if(wit)peeking={p:wit[2],t:wit[3],started:false};
     soundFor(V.log.filter(e=>e[0]>animState.lastI));
     animState.lastI=Math.max(animState.lastI,...V.log.map(e=>e[0]),0);
     const last=plays[plays.length-1];
@@ -1118,6 +1137,7 @@ function setView(nv){
   renderGame();
   if(flying&&!flying.started){flying.started=true;runFlight(flying)}
   if(passing&&!passing.started){passing.started=true;runPass(passing)}
+  if(peeking&&!peeking.started){peeking.started=true;runPeek(peeking)}
   queuePrompts();
 }
 
@@ -1150,6 +1170,7 @@ function renderGame(){
   let st='';
   if(V.ph==='over')st='舞会结束';
   else if(passing)st=passing.kind==='info'?'情报交换！':'谣言！';
+  else if(peeking)st=peeking.t===me?`${nameOf(peeking.p)}在偷看你的手牌！`:peeking.p===me?`你在偷看${nameOf(peeking.t)}的手牌…`:`${nameOf(peeking.p)}在偷看${nameOf(peeking.t)}的手牌`;
   else if(flying)st='';
   else if(myAsk&&myAsk.k==='play')st='轮到你出牌';
   else if(myAsk)st='轮到你选择';
@@ -1164,6 +1185,7 @@ function renderGame(){
   if(stEl.textContent!==st&&passing){stEl.classList.remove('pop');void stEl.offsetWidth;stEl.classList.add('pop')}
   stEl.classList.toggle('pass',!!passing);
   stEl.textContent=st;
+  if(peeking&&peeking.arrived){const d=document.querySelector(`#seats .seat[data-seat="${peeking.t}"]`);if(d)d.classList.add('peeked')}
   if(passing)document.querySelectorAll('#seats .seat').forEach(d=>{if(passing.pairs.some(x=>x[0]===+d.dataset.seat))d.classList.add('giving')});
   renderHeap();
   // log
@@ -1178,7 +1200,7 @@ function renderGame(){
   if(!hand)hd.innerHTML='<span class="none">正在同步手牌…</span>';
   else if(!hand.length)hd.innerHTML='<span class="none">手牌已出完，坐下来看他们跳完这支舞。</span>';
   else hand.forEach((c,i)=>{
-    const b=makeCard(c,(i===sel?'sel ':'')+(myTurn&&!legalMine(i)?'dim ':'')+(passing&&i===passing.incIdx?'incoming ':'')+(!passing&&i===freshIdx?'fresh':''));
+    const b=makeCard(c,(i===sel?'sel ':'')+(myTurn&&!legalMine(i)?'dim ':'')+(passing&&i===passing.incIdx?'incoming ':'')+(!passing&&i===freshIdx?'fresh ':'')+(peeking&&peeking.arrived&&peeking.t===me?'watched':''));
     b.dataset.idx=i;b.setAttribute('aria-pressed',i===sel?'true':'false');
     b.onclick=()=>{if(sel!==i)SFX.play('select');sel=i;renderGame()};
     hd.appendChild(b);
@@ -1261,6 +1283,34 @@ async function runFlight(f){
     el.remove();
   }
   if(flying===f){flying=null;renderGame()}
+}
+
+/* ---- peek animation (目击者) ---- */
+async function runPeek(K){
+  if(flying)await wait(ANIM*.5);
+  const a=seatPoint(K.p),b=seatPoint(K.t);
+  if(!reduceMotion()&&a&&b){
+    const tb=rectOf($('#felt'));
+    const m={x:(a.x+b.x)/2*.6+tb.x*.4,y:Math.min(a.y,b.y)-40};
+    const el=document.createElement('div');el.className='eyefly';el.innerHTML=ICON.W;
+    document.body.appendChild(el);
+    const T=(pt,sc,r=0)=>`translate(${pt.x}px,${pt.y}px) rotate(${r}deg) scale(${sc})`;
+    const at=(dx,dy=0)=>({x:b.x+dx,y:b.y+dy});
+    const an=el.animate([
+      {transform:T(a,.3),opacity:0,offset:0},
+      {transform:T(a,.8),opacity:1,offset:.08},
+      {transform:T(m,1.1,-10),offset:.25},
+      {transform:T(b,1.2),offset:.4},
+      {transform:T(at(-18,-4),1.2,-8),offset:.55},
+      {transform:T(at(18,-4),1.2,8),offset:.7},
+      {transform:T(at(-8),1.2,-4),offset:.82},
+      {transform:T(b,1.25),opacity:1,offset:.92},
+      {transform:T(b,.6),opacity:0,offset:1}
+    ],{duration:PEEK_MS-150,easing:'ease-in-out',fill:'forwards'});
+    setTimeout(()=>{if(peeking===K){K.arrived=true;renderGame()}},(PEEK_MS-150)*.4);
+    await an.finished.catch(()=>{});el.remove();
+  }
+  if(peeking===K){peeking=null;renderGame()}
 }
 
 /* ---- pass animation (情报交换 / 谣言) ---- */
@@ -1356,7 +1406,7 @@ function queuePrompts(){
   const pk=V.peek;
   if(pk&&typeof pk.id==='number'){
     const key='peek'+V.gid+'-'+pk.id;
-    if(!shownKeys.has(key)){shownKeys.add(key);enqueue(key,()=>showPeek(pk))}
+    if(!shownKeys.has(key)){shownKeys.add(key);enqueue(key,()=>wait(reduceMotion()?0:PEEK_MS*.85).then(()=>showPeek(pk)))}
   }
   if(V.result){
     const key='end'+V.gid;
@@ -1398,7 +1448,11 @@ function showPeek(pk){
   const cards=String(pk.h||'').split('').filter(okCard);
   return openSheetNow({title:`${nameOf(pk.t)}的手牌`,sub:'只有你看到了这些牌。',build:(el,done)=>{
     const o=document.createElement('div');o.className='opts cardrow';
-    for(const c of cards){const b=makeCard(c);b.tabIndex=-1;b.style.cursor='default';o.appendChild(b)}
+    cards.forEach((c,i)=>{
+      const w=document.createElement('div');w.className='flipwrap';w.style.setProperty('--d',(.25+i*.22)+'s');
+      w.innerHTML=`<div class="card back"></div><div class="card face t-${c}" aria-label="${CARDS[c].n}">${faceHTML(c)}</div>`;
+      o.appendChild(w);SFX.play('flip',.5+i*.22);
+    });
     if(!cards.length)o.innerHTML='<span class="note">他手里已经没有牌了。</span>';
     const r=document.createElement('div');r.className='row-end';
     const ok=document.createElement('button');ok.type='button';ok.className='play';ok.textContent='知道了';ok.onclick=()=>done(true);
