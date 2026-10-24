@@ -39,7 +39,7 @@ input{font:inherit}
 
 /* card colours, one per card type */
 .t-F{--c:#ffd23f}.t-C{--c:#ff5a5f}.t-D{--c:#6cb8ff}.t-A{--c:#5ccfb0}.t-X{--c:#ff8fb1}.t-W{--c:#b49cff}
-.t-G{--c:#ffb347}.t-T{--c:#8ee08f}.t-I{--c:#8fd8ff}.t-R{--c:#ffaed0}.t-N{--c:#d9d2c3}
+.t-G{--c:#ffb347}.t-K{--c:#8fa8ff}.t-B{--c:#ffc58a}.t-T{--c:#8ee08f}.t-I{--c:#8fd8ff}.t-R{--c:#ffaed0}.t-N{--c:#d9d2c3}
 
 .wrap{box-sizing:border-box;max-width:760px;margin:0 auto;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .ghost{background:var(--white);border:2px solid var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
@@ -74,6 +74,8 @@ input{font:inherit}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chipbtn{min-width:46px;padding:4px 0;border-radius:12px;border:2px solid var(--ink);background:#fff;cursor:pointer;font-family:var(--display);font-size:22px;box-shadow:2px 2px 0 var(--ink)}
 .chipbtn[aria-pressed="true"]{background:var(--red);color:#fff}
+.chipbtn.exp{font-family:var(--body);font-size:13px;font-weight:700;padding:6px 12px}
+.chipbtn.exp[aria-pressed="true"]{background:#8fa8ff;color:var(--ink)}
 .btnrow{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .joinrow{display:flex;gap:10px}
 .joinrow .inp{flex:1}
@@ -117,6 +119,7 @@ input{font:inherit}
 .tag{font-size:11px;line-height:16px;padding:0 6px;border-radius:999px;border:1.5px solid var(--ink);color:var(--ink);background:#fff;white-space:nowrap;font-weight:700}
 .tag.red{background:#ffd3dc;color:#b3122c}
 .tag.brass{background:var(--sun)}
+.tag.cop{background:#dfe6ff;color:#23338a}
 .tagbtn{font-size:11px;line-height:16px;padding:0 6px;border-radius:999px;border:1.5px solid var(--ink);color:#fff;background:var(--ink);cursor:pointer;font-weight:700}
 
 .pile{display:flex;align-items:flex-end;min-height:62px;--ov:-2px;padding-left:2px}
@@ -197,6 +200,11 @@ input{font:inherit}
 .pflyer .card.back{transform:rotateY(180deg)}
 .pflyer.only .card.back{transform:none}
 .card.incoming{visibility:hidden}
+.night{position:fixed;inset:0;z-index:18;pointer-events:none;background:rgba(18,12,40,.86);display:grid;place-items:center;opacity:0}
+.night .eyes{display:flex;gap:26px}
+.night .eyes i{width:34px;height:14px;border-radius:50%;background:#ffe9a8;box-shadow:0 0 18px #ffd23f;transform:scaleY(.1)}
+.night .cap{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);color:#ffe9a8;font-family:var(--display);font-size:22px;white-space:nowrap}
+.seat.spotted{box-shadow:0 0 0 4px #ff5a5f,5px 5px 0 var(--ink);background:#ffe1e3}
 .eyefly{position:fixed;left:0;top:0;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:var(--white);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);display:grid;place-items:center;z-index:17;pointer-events:none}
 .eyefly svg{width:46px;height:46px}
 .eyefly::after{content:"";position:absolute;right:-14px;bottom:-14px;width:22px;height:8px;border-radius:4px;background:var(--ink);transform:rotate(45deg)}
@@ -261,7 +269,7 @@ input{font:inherit}
 
 @keyframes bob{0%,100%{transform:translate(-2px,-2px)}50%{transform:translate(-2px,-5px)}}
 .seat.on{animation:bob 1.2s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.card,.seat{transition:none}.seat.on,.seat.giving,.felt .status.pop,.card.fresh,.heap.land .card,.seat.peeked .mini,.card.watched{animation:none}.flipwrap>.card.back{display:none}.flipwrap>.card.face{transform:none;animation:none}}
+@media (prefers-reduced-motion:reduce){.card,.seat{transition:none}.seat.on,.seat.giving,.felt .status.pop,.card.fresh,.heap.land .card,.seat.peeked .mini,.card.watched{animation:none}.night{display:none}.flipwrap>.card.back{display:none}.flipwrap>.card.face{transform:none;animation:none}}
 @media (max-width:520px){.hero{grid-template-columns:1fr}.hero h1{font-size:44px}.fan{justify-self:center;width:200px;height:160px;order:-1}.fan .card{left:50px}}
 </style>
 </head>
@@ -285,6 +293,10 @@ input{font:inherit}
       <div class="field">
         <span class="lbl" id="countLbl">几个人玩</span>
         <div class="chips" id="countChips" role="group" aria-labelledby="countLbl"></div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="expLbl">扩充牌</span>
+        <div class="chips" id="expChips" role="group" aria-labelledby="expLbl"></div>
       </div>
       <div class="btnrow">
         <button class="play" id="btnHost" type="button" disabled>开一桌</button>
@@ -366,21 +378,25 @@ input{font:inherit}
 <script>
 /* =================== data =================== */
 const CARDS={
+  K:{n:'警部',tone:'',s:'放在一名玩家面前。他最后打出犯人时，你逮捕他获胜。',d:'放在一名玩家面前，一直留着。如果这名玩家最后打出【犯人】，警部当场逮捕他，你获胜，犯人和共犯都输。扩充牌，开启后加入牌组，和神犬同时存在。'},
+  B:{n:'少年',tone:'',s:'打出后大家闭眼，犯人睁眼和你对视。',d:'打出后大家闭眼，只有此刻拿着犯人牌的人睁眼和你对视：你会知道犯人牌现在在谁手里，不在场证明也挡不住。之后犯人牌还可能换手。扩充牌，开启后替换一张目击者。'},
   F:{n:'第一发现者',tone:'',s:'持有者第一个出牌，开始游戏。',d:'持有者最先出牌，用它开局。没有其他效果。'},
   C:{n:'犯人',tone:'red',s:'只能作为最后一张打出。打出时犯人方获胜。',d:'只能作为最后一张手牌打出。打出时犯人和所有共犯获胜。'},
-  D:{n:'侦探',tone:'brass',s:'指认一人。对方是犯人且没有不在场证明，你获胜。',d:'指认一名玩家。对方拿着犯人、又没有不在场证明，你就获胜。'},
+  D:{n:'侦探',tone:'brass',s:'手牌 3 张以下才能打。指认一人，对方是犯人就获胜。',d:'手牌剩 3 张或更少时才能打出（第一轮不能用）。指认一名玩家，对方拿着犯人、又没有不在场证明，你就获胜。'},
   A:{n:'不在场证明',tone:'',s:'拿着它时，可以否认侦探的指认。',d:'持有它时，即使拿着犯人也能否认侦探的指认。打出没有效果。'},
   X:{n:'共犯',tone:'red',s:'打出后成为共犯，与犯人一同获胜。',d:'打出后加入犯人阵营：犯人打出犯人牌时，你一起获胜。'},
   W:{n:'目击者',tone:'',s:'偷看一名玩家的全部手牌。',d:'选一名玩家，偷看他的全部手牌。'},
   G:{n:'神犬',tone:'brass',s:'盲抽一人的一张牌，抽中犯人你获胜。',d:'从一名玩家手里盲抽一张。抽中犯人你获胜；否则那张弃掉，神犬交给对方。'},
   T:{n:'交易',tone:'',s:'与一名玩家各出一张牌交换。',d:'选一名玩家，双方各挑一张手牌交换。'},
-  I:{n:'情报交换',tone:'',s:'所有人选一张牌传给下家。',d:'所有人各挑一张手牌，传给下家。'},
-  R:{n:'谣言',tone:'',s:'所有人从上家手里随机抽一张。',d:'所有人从上家手里随机抽一张牌。'},
+  I:{n:'情报交换',tone:'',s:'所有人选一张牌传给下家。',d:'所有人各挑一张手牌，同时传给下家。手里没牌的人不用传，但也会收到上家传来的牌。'},
+  R:{n:'谣言',tone:'',s:'所有人从上家手里随机抽一张。',d:'所有人同时从上家手里随机抽一张牌。手里没牌的人也要抽；上家没牌就抽不到。'},
   N:{n:'一般人',tone:'',s:'没有效果。',d:'没有效果。'},
 };
 const INK='#2b2340';
 const ICON={
   F:`<svg viewBox="0 0 48 48"><circle cx="21" cy="27" r="15" fill="#ffe7a8" stroke="${INK}" stroke-width="3"/><circle cx="15.5" cy="24" r="2.4" fill="${INK}"/><circle cx="26.5" cy="24" r="2.4" fill="${INK}"/><ellipse cx="21" cy="33.5" rx="3" ry="3.8" fill="${INK}"/><path d="M40 5v13" stroke="#ff5a5f" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="25" r="2.8" fill="#ff5a5f"/></svg>`,
+  K:`<svg viewBox="0 0 48 48"><path d="M6 20c2-9 34-9 36 0l-3 5H9z" fill="#3a4f8f" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M8 25h32l-2 5H10z" fill="${INK}"/><path d="M24 11l3.2 3.6 4.8.4-3.6 3.2 1 4.6-5.4-2.6-5.4 2.6 1-4.6-3.6-3.2 4.8-.4z" fill="#ffd23f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="38" r="7" fill="#ffd23f" stroke="${INK}" stroke-width="3"/><path d="M24 34.5v7M20.5 38h7" stroke="${INK}" stroke-width="2"/></svg>`,
+  B:`<svg viewBox="0 0 48 48"><circle cx="24" cy="27" r="15" fill="#ffe7c4" stroke="${INK}" stroke-width="3"/><path d="M8 22c1-11 31-12 32 0-6-3-11-4-16-4s-10 1-16 4z" fill="#ff8c3a" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M38 20l7 2" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><circle cx="18" cy="27" r="3.4" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="30" cy="27" r="3.4" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="19" cy="27.5" r="1.6" fill="${INK}"/><circle cx="31" cy="27.5" r="1.6" fill="${INK}"/><path d="M20 35q4 3 8 0" stroke="${INK}" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M13 33h3M32 33h3" stroke="#ff8fb1" stroke-width="2.5" stroke-linecap="round"/></svg>`,
   C:`<svg viewBox="0 0 48 48"><path d="M7 20c3-11 31-11 34 0z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M4 21h40" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="31" r="13" fill="${INK}"/><path d="M14 29l7 2.5M34 29l-7 2.5" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M19 37.5q5 2.5 10-1" stroke="#ff5a5f" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>`,
   D:`<svg viewBox="0 0 48 48"><path d="M29 29l12 12" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M29 29l12 12" stroke="#c98a4b" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="20" r="13" fill="#d7efff" stroke="${INK}" stroke-width="3.5"/><path d="M13 16a8 8 0 0 1 6-5" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`,
   A:`<svg viewBox="0 0 48 48"><rect x="5" y="11" width="38" height="27" rx="5" fill="#fff6d1" stroke="${INK}" stroke-width="3"/><path d="M33 11v27" stroke="${INK}" stroke-width="2.5" stroke-dasharray="3 3"/><circle cx="19" cy="24.5" r="7.5" fill="#fff" stroke="${INK}" stroke-width="2.5"/><path d="M19 20v5l3 2" stroke="${INK}" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M37 19h2M37 24.5h2M37 30h2" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/></svg>`,
@@ -393,11 +409,14 @@ const ICON={
   N:`<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17" fill="#fff1d6" stroke="${INK}" stroke-width="3"/><path d="M15 21q2.5-3 5 0M28 21q2.5-3 5 0" stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M17 29q7 6 14 0" stroke="${INK}" stroke-width="2.8" fill="none" stroke-linecap="round"/><circle cx="13" cy="28" r="2.6" fill="#ffaed0"/><circle cx="35" cy="28" r="2.6" fill="#ffaed0"/></svg>`,
 };
 const SEATC=['#ffd23f','#6cb8ff','#ff8fb1','#5ccfb0','#b49cff','#ffb347','#8ee08f','#ff5a5f'];
-const ORDER='FCDAXWGTIRN';
-const FULL={F:1,C:1,D:4,A:5,X:2,W:3,G:1,T:5,I:4,R:4,N:2};
-const SETUP={3:'FCDA',4:'FCDA',5:'FCDAX',6:'FCDAAX',7:'FCDAAXX',8:null};
+const ORDER='FCDAXWGTIRNKB';
+const FULL={F:1,C:1,D:4,A:5,X:2,W:3,G:1,T:5,I:4,R:4,N:2,K:0,B:0};
+let OPTS={K:true,B:true};
+try{const o=JSON.parse(localStorage.getItem('hannin.opts')||'null');if(o&&typeof o==='object')OPTS={K:!!o.K,B:!!o.B}}catch(e){}
+function deckCounts(o){const f={...FULL};if(o&&o.K){f.K=1}if(o&&o.B){f.W-=1;f.B=1}return f}
+const SETUP={3:'FCDA',4:'FCDAX',5:'FCDAAX',6:'FCDDAAXX',7:'FCDDAAAXX',8:null};
 const AI_NAMES=['钢琴师','女伯爵','侍者','园丁','管家','船长','歌女'];
-const ANIM=1500,AI_DELAY=800,PASS_MS=1500,PEEK_MS=1500;
+const ANIM=1500,AI_DELAY=800,PASS_MS=1500,PEEK_MS=1500,BOY_MS=1900;
 
 const $=s=>document.querySelector(s);
 const rnd=n=>Math.floor(Math.random()*n);
@@ -454,6 +473,8 @@ const SFX=(()=>{
     caught(t){S.accuse(t);[523,659,784,1047].forEach((f,i)=>tone(f,t+.35+i*.09,.3,{vol:.2}))},
     win(t){[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,t+i*.11,i>3?.5:.2,{vol:.22}))},
     lose(t){[523,466,415,349].forEach((f,i)=>tone(f,t+i*.16,.3,{type:'sawtooth',vol:.1}))},
+    night(t){noise(t,.9,{f0:400,f1:120,type:'lowpass',vol:.25});tone(880,t+.6,.25,{type:'sine',vol:.12});tone(1320,t+.72,.4,{type:'sine',vol:.1})},
+    arrest(t){[784,659,784,659].forEach((f,i)=>tone(f,t+i*.16,.15,{type:'square',vol:.12}))},
     culprit(t){tone(147,t,.5,{type:'sawtooth',vol:.16});tone(156,t+.05,.5,{type:'sawtooth',vol:.12});noise(t,.5,{f0:300,f1:120,type:'lowpass',vol:.25})},
   };
   return {
@@ -498,10 +519,14 @@ function hideToast(){$('#toast').hidden=true}
 
 /* =================== HOST ENGINE =================== */
 function deal(n){
-  let deck=[];
-  if(n===8){for(const c in FULL)for(let i=0;i<FULL[c];i++)deck.push(c)}
+  let deck=[];const full=deckCounts(G&&G.opts);
+  if(n===8){
+    // 8 人用全部牌；加入警部后多出 1 张，就从非必需的牌里随机去掉多余的
+    const pool=[];for(const c in full)for(let i=0;i<full[c];i++)if(c!=='F'&&c!=='C')pool.push(c);
+    shuffle(pool);deck=['F','C',...pool.slice(0,30)];
+  }
   else{
-    const fixed=SETUP[n].split(''),left={...FULL},pool=[];
+    const fixed=SETUP[n].split(''),left={...full},pool=[];
     for(const c of fixed)left[c]--;
     for(const c in left)for(let i=0;i<left[c];i++)pool.push(c);
     shuffle(pool);deck=fixed.concat(pool.slice(0,n*4-fixed.length));
@@ -552,12 +577,13 @@ function aiPickIdx(p){
   if(!G.fd){const f=h.indexOf('F');if(f>=0)return f}
   if(h.length===1)return 0;
   const holds=has(p,'C'),acc=G.acc.includes(p),alibi=has(p,'A'),mp=maxOther(p);
-  const idx=h.map((_,i)=>i).filter(i=>h[i]!=='C');
+  const idx=h.map((_,i)=>i).filter(i=>legalIdx(p,i));
+  const marked=G.insp.some(x=>x.t===p);
   return pickBy(idx,i=>{
     const c=h[i];let s;
-    if(holds)s={D:6,N:5,W:5,G:4,X:3,T:alibi?2:5,I:alibi?2:4.5,R:alibi?2:4,A:-5}[c];
-    else if(acc)s={D:-2,G:-2,N:5,W:4,A:4,T:3.5,I:3.5,R:3.5,X:4}[c];
-    else s={D:mp>=0.6?10:mp>=0.45?3:0.5,G:mp>=0.5?8:2.5,W:mp<0.7?6:2,N:4,A:3,T:3.5,I:3.5,R:3.5,X:1.5}[c];
+    if(holds)s={D:6,N:5,W:5,G:4,X:3,T:alibi&&!marked?2:marked?9:5,I:alibi&&!marked?2:marked?8:4.5,R:alibi?2:4,A:-5,K:4,B:1}[c];
+    else if(acc)s={D:-2,G:-2,N:5,W:4,A:4,T:3.5,I:3.5,R:3.5,X:4,K:2,B:4}[c];
+    else s={D:mp>=0.6?10:mp>=0.45?3:0.5,G:mp>=0.5?8:2.5,W:mp<0.7?6:2,N:4,A:3,T:3.5,I:3.5,R:3.5,X:1.5,K:mp>=0.45?7:3,B:mp<0.9?7:1}[c];
     return (s??0)+Math.random()*1.5;
   });
 }
@@ -570,10 +596,11 @@ function aiTarget(p,c){
 }
 function aiGiveIdx(p){
   const h=G.hands[p],holds=has(p,'C'),alibi=has(p,'A'),acc=G.acc.includes(p);
-  if(holds&&!alibi&&h.length>2&&Math.random()<0.45)return h.indexOf('C');
-  const Vv=holds?{C:10,A:9,D:6,G:5,W:4,T:3,I:3,R:3,X:2,N:1}
-    :acc?{A:6,W:5,T:4,I:4,R:4,X:3,N:2,D:1,G:1}
-    :{D:9,G:7,W:5,A:4,T:3,I:3,R:3,X:2,N:1};
+  const marked=G.insp.some(x=>x.t===p);
+  if(holds&&(marked||!alibi)&&h.length>(marked?1:2)&&Math.random()<(marked?0.8:0.45))return h.indexOf('C');
+  const Vv=holds?{C:10,A:9,D:6,G:5,K:5,B:3,W:4,T:3,I:3,R:3,X:2,N:1}
+    :acc?{A:6,W:5,B:5,T:4,I:4,R:4,X:3,N:2,D:1,G:1,K:1}
+    :{D:9,G:7,K:6,B:6,W:5,A:4,T:3,I:3,R:3,X:2,N:1};
   return pickBy(h.map((_,i)=>i),i=>-((Vv[h[i]]??0)+Math.random()*0.5));
 }
 function aiAnswer(p,req){
@@ -585,13 +612,17 @@ function aiAnswer(p,req){
   }
 }
 
-function legalIdx(p,i){
-  const h=G.hands[p],c=h[i];
-  if(c==null)return false;
-  if(!G.fd&&h.includes('F'))return c==='F';
+function legalIn(h,fd,i,strict=true){
+  const c=h[i];if(c==null)return false;
+  if(!fd&&h.includes('F'))return c==='F';
   if(c==='C'&&h.length>1)return false;
+  if(c==='D'&&h.length>3&&strict){
+    // only when nothing else could be played (e.g. 犯人 + 3 侦探) does 侦探 stay allowed
+    return !h.some((x,j)=>j!==i&&legalIn(h,fd,j,false)&&x!=='D');
+  }
   return true;
 }
+function legalIdx(p,i){return legalIn(G.hands[p],G.fd,i)}
 function validAnswer(p,req,v){
   if(!Number.isInteger(v))return false;
   switch(req.k){
@@ -634,7 +665,7 @@ function startGame(){
   G.turn=G.hands.findIndex(h=>h.includes('F'));
   G.fd=false;G.over=false;G.result=null;G.log=[];G.plog=G.seats.map(()=>[]);
   G.ask=G.seats.map(()=>null);G.res=G.seats.map(()=>null);G.peek=G.seats.map(()=>null);
-  G.ph='play';G.K=[];
+  G.ph='play';G.K=[];G.insp=[];G.boy=G.seats.map(()=>null);
   aiSeats().forEach(kInit);
   log(['deal',G.turn]);
   push();
@@ -664,6 +695,23 @@ async function doPlay(p,idx,gen){
     case 'C':finish({t:'C',p});return;
     case 'F':log(['start']);break;
     case 'X':if(!G.acc.includes(p))G.acc.push(p);log(['acc',p]);break;
+    case 'K':{
+      const o=cands(p);if(!o.length){log(['none','K']);break}
+      const t=await request(p,{k:'target',c:'K',o});if(stale())return;
+      G.insp.push({p,t});log(['insp',p,t]);
+      break;
+    }
+    case 'B':{
+      const h=G.hands.findIndex(x=>x.includes('C'));
+      log(['boy',p]);
+      if(h>=0){
+        if(G.seats[p].kind==='a'){const k=G.K[p];if(k){k.fill(0);k[h]=1}}
+        else G.boy[p]={id:++G.rid,role:'boy',t:h};
+        if(h!==p&&G.seats[h].kind!=='a')G.boy[h]={id:++G.rid,role:'culprit',t:p};
+      }
+      push();await wait(BOY_MS);if(stale())return;
+      break;
+    }
     case 'D':{
       const o=cands(p);if(!o.length){log(['none','D']);break}
       const t=await request(p,{k:'target',c:'D',o});if(stale())return;
@@ -705,9 +753,10 @@ async function doPlay(p,idx,gen){
     }
     case 'I':
     case 'R':{
-      const act=active();if(act.length<2){log(['none','IR']);break}
+      // 中文版：没有手牌的人也参与，可以收到牌（情报交换）/ 也要从上家抽牌（谣言）
+      const act=active();if(!act.length||(act.length===1&&G.n<2)){log(['none','IR']);break}
       const hb=G.hands.map(h=>h.length);
-      const tos=act.map(i=>nextActive(i));
+      const tos=act.map(i=>(i+1)%G.n);
       let idxs;
       if(code==='R')idxs=act.map(i=>rnd(G.hands[i].length));
       else{idxs=await Promise.all(act.map((i,k)=>request(i,{k:'give',w:'i',to:tos[k]})));if(stale())return}
@@ -719,7 +768,7 @@ async function doPlay(p,idx,gen){
       G.seats.forEach((s,i)=>{
         if(s.kind==='a')return;
         const out=moves.find(m=>m.from===i),inn=moves.find(m=>m.to===i);
-        if(out&&inn)plog(i,code==='I'?['ime',out.card,inn.from,inn.card]:['rme',inn.from,inn.card,out.to,out.card]);
+        if(out||inn)plog(i,code==='I'?['ime',out?out.card:'',inn?inn.from:-1,inn?inn.card:'']:['rme',inn?inn.from:-1,inn?inn.card:'',out?out.to:-1,out?out.card:'']);
       });
       push();await wait(PASS_MS);if(stale())return;
       break;
@@ -729,6 +778,10 @@ async function doPlay(p,idx,gen){
 }
 function finish(r){
   G.over=true;G.ph='over';
+  if(r.t==='C'){
+    const ins=G.insp.find(x=>x.t===r.p);
+    if(ins){log(['arrest',ins.p,r.p]);r={t:'K',p:ins.p,tg:r.p}}
+  }
   const w=r.t==='C'?[r.p,...G.acc.filter(x=>x!==r.p)]:[r.p];
   G.result={t:r.t,p:r.p,tg:r.tg??-1,w,rv:G.hands.map(h=>h.join('')),ac:[...G.acc]};
   G.ask=G.seats.map(()=>null);
@@ -740,13 +793,13 @@ function pubState(lgN=14){
   return {c:G.code||'',n:G.n,ph:G.ph,gid:G.gid,
     s:G.seats.map(x=>[x.nick,x.kind,x.on?1:0]),
     t:G.hands?G.turn:-1,h:G.hands?G.hands.map(x=>x.length):[],
-    pl:G.piles?G.piles.map(x=>x.join('')):[],ac:G.acc||[],fd:G.fd?1:0,
+    pl:G.piles?G.piles.map(x=>x.join('')):[],ac:G.acc||[],fd:G.fd?1:0,ip:(G.insp||[]).map(x=>[x.p,x.t]),x:G.opts||{},
     lg:(G.log||[]).slice(-lgN),r:G.result||null,
     wf:(G.ask||[]).map((a,i)=>a?i:-1).filter(i=>i>=0),v:G.ver};
 }
 function privState(s,lgN=6){
   if(!G.hands)return {h:'',a:null,k:null,lg:[]};
-  return {h:G.hands[s].join(''),a:G.ask[s]||null,k:G.peek[s]||null,lg:G.plog[s].slice(-lgN)};
+  return {h:G.hands[s].join(''),a:G.ask[s]||null,k:G.peek[s]||null,b:(G.boy&&G.boy[s])||null,lg:G.plog[s].slice(-lgN)};
 }
 function push(){
   if(!G)return;
@@ -895,7 +948,8 @@ function makeView(tb,pv,me){
   const lg=[...(Array.isArray(tb.lg)?tb.lg:[]),...(pv&&Array.isArray(pv.lg)?pv.lg:[])].filter(Array.isArray).sort((a,b)=>a[0]-b[0]);
   return {me,n:tb.n,ph:tb.ph,gid:tb.gid,seats,turn:tb.t,cnt:tb.h||[],piles:(tb.pl||[]).map(s=>String(s).split('').filter(okCard)),
     acc:Array.isArray(tb.ac)?tb.ac:[],fd:!!tb.fd,log:lg,result:tb.r||null,wf:Array.isArray(tb.wf)?tb.wf:[],
-    hand:pv?String(pv.h||'').split('').filter(okCard):null,ask:pv?pv.a:null,peek:pv?pv.k:null,code:tb.c};
+    hand:pv?String(pv.h||'').split('').filter(okCard):null,ask:pv?pv.a:null,peek:pv?pv.k:null,boy:pv?pv.b:null,code:tb.c,
+    insp:Array.isArray(tb.ip)?tb.ip.filter(x=>Array.isArray(x)&&Number.isInteger(x[0])&&Number.isInteger(x[1])):[],opts:tb.x&&typeof tb.x==='object'?{K:!!tb.x.K,B:!!tb.x.B}:{}};
 }
 function lobbyFromHost(){
   return {n:G.n,code:G.code,seats:G.seats.map(s=>({nick:s.nick,kind:s.kind,on:s.on})),me:0,host:true};
@@ -910,6 +964,13 @@ function showHome(){showScreen('home');renderHome()}
 
 /* ---- home ---- */
 function renderHome(){
+  const ex=$('#expChips');ex.innerHTML='';
+  for(const [k,label] of [['K','警部（加入，和神犬同时存在）'],['B','少年（替换一张目击者）']]){
+    const b=document.createElement('button');b.type='button';b.className='chipbtn exp';b.textContent=label;
+    b.setAttribute('aria-pressed',OPTS[k]?'true':'false');
+    b.onclick=()=>{OPTS[k]=!OPTS[k];try{localStorage.setItem('hannin.opts',JSON.stringify(OPTS))}catch(e){};renderHome()};
+    ex.appendChild(b);
+  }
   const chips=$('#countChips');chips.innerHTML='';
   for(let n=3;n<=8;n++){
     const b=document.createElement('button');b.type='button';b.className='chipbtn';b.textContent=n;
@@ -945,7 +1006,7 @@ async function hostTable(){
   peer.on('connection',onHostConn);
   peer.on('disconnected',()=>{if(peer&&!peer.destroyed){try{peer.reconnect()}catch(e){}}});
   peer.on('error',()=>{});
-  G={n:selCount,code:c,ph:'lobby',gid:0,gen:0,rid:0,lc:0,ver:0,seats:[{nick,kind:'h',key:'host',on:true}]};
+  G={n:selCount,code:c,ph:'lobby',gid:0,gen:0,rid:0,lc:0,ver:0,opts:{...OPTS},insp:[],seats:[{nick,kind:'h',key:'host',on:true}]};
   hostTimer=setInterval(hostTick,3000);
   showScreen('lobby');push();
 }
@@ -953,7 +1014,7 @@ function soloGame(){
   $('#homeErr').textContent='';
   const nick=getNick();
   isHost=true;single=true;code=null;
-  G={n:selCount,code:'',ph:'lobby',gid:0,gen:0,rid:0,lc:0,ver:0,seats:[{nick,kind:'h',key:'host',on:true}]};
+  G={n:selCount,code:'',ph:'lobby',gid:0,gen:0,rid:0,lc:0,ver:0,opts:{...OPTS},insp:[],seats:[{nick,kind:'h',key:'host',on:true}]};
   fillAI();
   showScreen('game');startGame();
 }
@@ -1043,13 +1104,14 @@ function renderLobby(L){
 }
 
 /* ---- game rendering ---- */
-let wasMyTurn=false,peeking=null,passing=null,freshIdx=-1,sel=-1,animState={gid:null,lastI:0},flying=null,lastPlayRect=null,lastHandKey='';
+let wasMyTurn=false,night=null,peeking=null,passing=null,freshIdx=-1,sel=-1,animState={gid:null,lastI:0},flying=null,lastPlayRect=null,lastHandKey='';
 const nameOf=s=>s===V.me?"你":esc(V.seats[s]?.nick||"?");
 function isMe(e){
   if(!V)return false;const me=V.me,t=e[1];
   if(t==='tme'||t==='ime'||t==='rme')return true;
   if(t==='play'||t==='acc'||t==='deal')return e[2]===me;
-  if(t==='det'||t==='wit'||t==='trade'||t==='dog')return e[2]===me||e[3]===me;
+  if(t==='det'||t==='wit'||t==='trade'||t==='dog'||t==='insp'||t==='arrest')return e[2]===me||e[3]===me;
+  if(t==='boy')return e[2]===me;
   return false;
 }
 function logText(e){
@@ -1061,14 +1123,17 @@ function logText(e){
     case 'acc':return `${nm(e[2])}成为共犯，站到了犯人那边。`;
     case 'det':return e[4]?`${nm(e[2])}指认${nm(e[3])}：“犯人就是你！”`:`${nm(e[2])}指认${nm(e[3])}，${nm(e[3])}说：“不是我。”`;
     case 'wit':return `${nm(e[2])}偷看了${nm(e[3])}的手牌。`;
+    case 'insp':return `${nm(e[2])}把${cn('K')}放在${nm(e[3])}面前，盯上了${e[3]===V.me?'你':'他'}。`;
+    case 'boy':return `${nm(e[2])}打出${cn('B')}：大家闭眼，犯人悄悄和少年对上了眼。`;
+    case 'arrest':return `${nm(e[3])}刚亮出犯人牌，就被${nm(e[2])}的警部当场逮捕！`;
     case 'dog':return e[5]?`神犬从${nm(e[3])}手里叼出了${cn('C')}！`:`神犬从${nm(e[3])}手里叼出${cn(e[4])}，这张弃掉，神犬留在${nm(e[3])}手里。`;
     case 'trade':return `${nm(e[2])}和${nm(e[3])}交换了一张牌。`;
-    case 'info':return '所有人各向下家传了一张牌。';
-    case 'rumor':return '所有人从上家手里随机抽了一张牌。';
+    case 'info':return '所有人各向下家传了一张牌（没牌的人也会收到）。';
+    case 'rumor':return '所有人从上家手里随机抽了一张牌（没牌的人也要抽）。';
     case 'none':return e[2]==='T0'?'手里没牌了，交易没有效果。':e[2]==='IR'?'手里还有牌的人不够，没有效果。':'没有可以选的人，没有效果。';
     case 'tme':return `你把${cn(e[3])}交给${nm(e[2])}，换回${cn(e[4])}。`;
-    case 'ime':return `你传出${cn(e[2])}，从${nm(e[3])}那里收到${cn(e[4])}。`;
-    case 'rme':return `你从${nm(e[2])}手里抽到${cn(e[3])}，${nm(e[4])}抽走了你的${cn(e[5])}。`;
+    case 'ime':return okCard(e[2])&&okCard(e[4])?`你传出${cn(e[2])}，从${nm(e[3])}那里收到${cn(e[4])}。`:okCard(e[4])?`你手里没牌，也从${nm(e[3])}那里收到了${cn(e[4])}。`:`你传出${cn(e[2])}。`;
+    case 'rme':return okCard(e[3])&&okCard(e[5])?`你从${nm(e[2])}手里抽到${cn(e[3])}，${nm(e[4])}抽走了你的${cn(e[5])}。`:okCard(e[3])?`你从${nm(e[2])}手里抽到${cn(e[3])}。`:`${nm(e[4])}抽走了你的${cn(e[5])}。`;
   }
   return '';
 }
@@ -1080,12 +1145,7 @@ function pileHTML(seat,list){
   const hideLast=flying&&flying.p===seat;
   return list.map((c,k)=>`<button type="button" class="pc t-${c} ${hideLast&&k===list.length-1?'hidden':''}" data-t="${c}" aria-label="${CARDS[c].n}">${CARDS[c].n}</button>`).join('');
 }
-function legalMine(i){
-  const h=V.hand||[],c=h[i];if(c==null)return false;
-  if(!V.fd&&h.includes('F'))return c==='F';
-  if(c==='C'&&h.length>1)return false;
-  return true;
-}
+function legalMine(i){return legalIn(V.hand||[],V.fd,i)}
 
 function setView(nv){
   const prev=V;V=nv;
@@ -1094,7 +1154,7 @@ function setView(nv){
   // reset per-game state
   if(animState.gid!==V.gid){
     animState={gid:V.gid,lastI:V.log.reduce((m,e)=>Math.max(m,e[0]),0)};
-    flying=null;passing=null;peeking=null;freshIdx=-1;sel=-1;answered.clear();heapKey='';
+    flying=null;passing=null;peeking=null;night=null;document.querySelectorAll('.night').forEach(f=>f.remove());freshIdx=-1;sel=-1;answered.clear();heapKey='';
     document.querySelectorAll('.eyefly').forEach(f=>f.remove());
     document.querySelectorAll('.pflyer').forEach(f=>f.remove());
     if(V.hand&&!V.fd){const f=V.hand.indexOf('F');if(f>=0)sel=f}
@@ -1105,7 +1165,7 @@ function setView(nv){
     if(pass){
       const mine=V.log.filter(e=>(e[1]==='ime'||e[1]==='rme')&&e[0]>animState.lastI).pop();
       let out=null,inc=null;
-      if(mine&&mine[1]==='ime'){out=mine[2];inc=mine[4]}
+      if(mine&&mine[1]==='ime'){out=mine[2]||null;inc=mine[4]||null}
       else if(mine){inc=mine[3];out=mine[5]}
       const pairs=pass[2].filter(x=>Array.isArray(x)&&Number.isInteger(x[0])&&Number.isInteger(x[1])&&V.seats[x[0]]&&V.seats[x[1]]);
       const hand=V.hand||[];
@@ -1114,6 +1174,8 @@ function setView(nv){
     }
     const wit=V.log.filter(e=>e[1]==='wit'&&e[0]>animState.lastI&&V.seats[e[2]]&&V.seats[e[3]]).pop();
     if(wit)peeking={p:wit[2],t:wit[3],started:false};
+    const by=V.log.filter(e=>e[1]==='boy'&&e[0]>animState.lastI&&V.seats[e[2]]).pop();
+    if(by)night={p:by[2],started:false};
     soundFor(V.log.filter(e=>e[0]>animState.lastI));
     animState.lastI=Math.max(animState.lastI,...V.log.map(e=>e[0]),0);
     const last=plays[plays.length-1];
@@ -1138,6 +1200,7 @@ function setView(nv){
   if(flying&&!flying.started){flying.started=true;runFlight(flying)}
   if(passing&&!passing.started){passing.started=true;runPass(passing)}
   if(peeking&&!peeking.started){peeking.started=true;runPeek(peeking)}
+  if(night&&!night.started){night.started=true;runNight(night)}
   queuePrompts();
 }
 
@@ -1159,6 +1222,7 @@ function renderGame(){
     if(info.kind==='h')tags.push('<span class="tag brass">房主</span>');
     if(info.kind==='a'&&!single)tags.push('<span class="tag">电脑</span>');
     if(V.acc.includes(s))tags.push('<span class="tag red">共犯</span>');
+    if(V.insp.some(x=>x[1]===s))tags.push('<span class="tag cop">被警部盯上</span>');
     if(info.kind==='r'&&!info.on)tags.push(isHost?`<button type="button" class="tagbtn" data-bot="${s}">电脑代打</button>`:'<span class="tag">离线</span>');
     d.innerHTML=`<div class="top"><span class="mono" style="background:${SEATC[s%8]}">${esc([...info.nick][0]||'?')}</span><span class="nm">${esc(info.nick)}</span></div>
       <div class="meta"><span class="backs" data-backs="${s}">${'<span class="mini"></span>'.repeat(Math.min(cnt,6))}</span><span class="cnt">${cnt} 张</span>${tags.join('')}</div>
@@ -1170,6 +1234,7 @@ function renderGame(){
   let st='';
   if(V.ph==='over')st='舞会结束';
   else if(passing)st=passing.kind==='info'?'情报交换！':'谣言！';
+  else if(night)st=night.p===me?'大家闭眼……犯人，请睁眼':`${nameOf(night.p)}打出少年，大家闭眼…`;
   else if(peeking)st=peeking.t===me?`${nameOf(peeking.p)}在偷看你的手牌！`:peeking.p===me?`你在偷看${nameOf(peeking.t)}的手牌…`:`${nameOf(peeking.p)}在偷看${nameOf(peeking.t)}的手牌`;
   else if(flying)st='';
   else if(myAsk&&myAsk.k==='play')st='轮到你出牌';
@@ -1191,7 +1256,7 @@ function renderGame(){
   // log
   $('#log').innerHTML=V.log.slice(-24).reverse().map(e=>`<p class="${isMe(e)?'mine':''}">${logText(e)}</p>`).join('');
   // me
-  $('#meLbl').innerHTML=`${esc(V.seats[me]?.nick||'你')}${V.acc.includes(me)?'<span class="tag red">共犯</span>':''}`;
+  $('#meLbl').innerHTML=`${esc(V.seats[me]?.nick||'你')}${V.acc.includes(me)?'<span class="tag red">共犯</span>':''}${V.insp.some(x=>x[1]===me)?'<span class="tag cop">被警部盯上</span>':''}`;
   const mp=$('#myPile');mp.dataset.pile=me;mp.innerHTML=pileHTML(me,V.piles[me]||[]);
   const hand=V.hand;
   $('#myCnt').textContent=hand?`手牌 ${hand.length} 张`:'';
@@ -1209,7 +1274,7 @@ function renderGame(){
   const c=hand&&hand[sel];
   if(myTurn){
     if(c==null)desc='选一张牌，再按“打出”。';
-    else if(!legalMine(sel))desc=c==='C'?'犯人只能留到最后一张再打。':'开局必须先打出第一发现者。';
+    else if(!legalMine(sel))desc=c==='C'?'犯人只能留到最后一张再打。':c==='D'?'侦探要等手牌剩 3 张以下才能打。':'开局必须先打出第一发现者。';
     else desc=`准备打出【${CARDS[c].n}】`;
   }else if(V.ph==='play'&&hand&&hand.length)desc='点自己的牌可以查看效果，等轮到你再出。';
   $('#desc').textContent=desc;
@@ -1225,6 +1290,9 @@ function soundFor(entries){
       case 'det':SFX.play('accuse');if(!e[4])SFX.play('denied',.4);break;
       case 'dog':SFX.play('dog');break;
       case 'wit':SFX.play('peek');break;
+      case 'insp':SFX.play('accuse');break;
+      case 'arrest':SFX.play('arrest',.3);break;
+
       case 'trade':SFX.play('trade');break;
       case 'info':SFX.play('pass',.3);break;
       case 'rumor':SFX.play('rumor',.3);break;
@@ -1283,6 +1351,23 @@ async function runFlight(f){
     el.remove();
   }
   if(flying===f){flying=null;renderGame()}
+}
+
+/* ---- 少年: lights out, the culprit's eyes meet the boy's ---- */
+async function runNight(Nt){
+  if(flying)await wait(ANIM*.6);
+  if(!reduceMotion()){
+    const el=document.createElement('div');el.className='night';
+    const lit=Nt.p===V.me||(V.hand||[]).includes('C');
+    el.innerHTML=`<div class="eyes"><i></i><i></i></div><div class="cap">${lit?'睁开眼的人……':'大家闭上眼睛……'}</div>`;
+    document.body.appendChild(el);
+    SFX.play('night');
+    const D=BOY_MS-200;
+    el.animate([{opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.85},{opacity:0}],{duration:D,fill:'forwards'});
+    for(const i of el.querySelectorAll('.eyes i'))i.animate([{transform:'scaleY(.1)',offset:0},{transform:'scaleY(.1)',offset:.3},{transform:'scaleY(1)',offset:.42},{transform:'scaleY(1)',offset:.6},{transform:'scaleY(.1)',offset:.66},{transform:'scaleY(1)',offset:.72},{transform:'scaleY(1)',offset:.85},{transform:'scaleY(.1)',offset:1}],{duration:D,fill:'forwards'});
+    await wait(D);el.remove();
+  }
+  if(night===Nt){night=null;renderGame()}
 }
 
 /* ---- peek animation (目击者) ---- */
@@ -1403,6 +1488,11 @@ function queuePrompts(){
     const key='ask'+V.gid+'-'+a.id;
     if(!shownKeys.has(key)){shownKeys.add(key);enqueue(key,()=>promptAsk(a))}
   }
+  const bo=V.boy;
+  if(bo&&typeof bo.id==='number'&&Number.isInteger(bo.t)){
+    const key='boy'+V.gid+'-'+bo.id;
+    if(!shownKeys.has(key)){shownKeys.add(key);enqueue(key,()=>wait(reduceMotion()?0:BOY_MS*.9).then(()=>showBoy(bo)))}
+  }
   const pk=V.peek;
   if(pk&&typeof pk.id==='number'){
     const key='peek'+V.gid+'-'+pk.id;
@@ -1413,7 +1503,7 @@ function queuePrompts(){
     if(!shownKeys.has(key)){shownKeys.add(key);enqueue(key,()=>wait(flying?ANIM:300).then(showEnd))}
   }
 }
-const TARGET_TITLE={D:'指认谁是犯人？',W:'偷看谁的手牌？',G:'让神犬去谁那里？',T:'和谁交易？'};
+const TARGET_TITLE={D:'指认谁是犯人？',W:'偷看谁的手牌？',G:'让神犬去谁那里？',T:'和谁交易？',K:'把警部放在谁面前？'};
 async function promptAsk(a){
   if(!V||!V.ask||V.ask.id!==a.id||answered.has(a.id))return;
   let v=null;
@@ -1444,6 +1534,20 @@ async function promptAsk(a){
   }
   if(v!=null&&V&&V.ask&&V.ask.id===a.id)sendAnswer(a.id,v);
 }
+function showBoy(bo){
+  const t=bo.t,self=t===V.me,cul=bo.role==='culprit';
+  const seat=document.querySelector(`#seats .seat[data-seat="${t}"]`);if(seat)seat.classList.add('spotted');
+  SFX.play('peek');
+  const title=cul?`少年是${nameOf(t)}`:self?'你同时拿着少年和犯人':`犯人是${nameOf(t)}`;
+  const sub=cul?'你们刚刚对上了眼：他知道你是犯人了。小心他。':self?'睁眼的只有你自己。':'你们刚刚对上了眼。这是你打出少年那一刻的情况，之后犯人牌还可能换手。';
+  return openSheetNow({title,sub,build:(el,done)=>{
+    const o=document.createElement('div');o.className='opts';
+    o.innerHTML=`<div class="pbtn" style="cursor:default;flex:0 1 auto"><span class="mono" style="background:${SEATC[t%8]}">${esc([...(V.seats[t]?.nick||'?')][0])}</span><span>${nameOf(t)}</span><small style="margin-left:12px;color:#d6283c">${cul?'少年':'犯人'}</small></div>`;
+    const r=document.createElement('div');r.className='row-end';
+    const ok=document.createElement('button');ok.type='button';ok.className='play';ok.textContent='知道了';ok.onclick=()=>done(true);
+    r.appendChild(ok);el.append(o,r);
+  }}).then(()=>{const d=document.querySelector(`#seats .seat[data-seat="${t}"]`);if(d)d.classList.remove('spotted')});
+}
 function showPeek(pk){
   const cards=String(pk.h||'').split('').filter(okCard);
   return openSheetNow({title:`${nameOf(pk.t)}的手牌`,sub:'只有你看到了这些牌。',build:(el,done)=>{
@@ -1464,11 +1568,12 @@ function showEnd(){
   const r=V.result,me=V.me,w=Array.isArray(r.w)?r.w:[],ac=Array.isArray(r.ac)?r.ac:[];
   let out;
   if(w.includes(me))out='win';
-  else if(r.t==='C'||r.tg===me||ac.includes(me))out='lose';
+  else if(r.t==='C'||r.tg===me||(ac.includes(me)&&r.t!=='C'))out='lose';
   else out='none';
   const head={win:'你赢了',lose:'你输了',none:'犯人落网'}[out];
   SFX.play(out==='win'?'win':out==='lose'?'lose':'caught');
   const line=r.t==='C'?`${nameOf(r.p)}打出最后一张牌【犯人】，跳完了这支舞。`
+    :r.t==='K'?`${nameOf(r.tg)}打出了【犯人】，可${nameOf(r.p)}的【警部】早就盯上了他，当场逮捕。`
     :`${nameOf(r.p)}用${r.t==='D'?'【侦探】':'【神犬】'}抓住了犯人${nameOf(r.tg)}。`;
   const winLine=`获胜：${w.map(s=>nameOf(s)).join('、')}。`;
   const accLine=ac.length?`共犯：${ac.map(s=>nameOf(s)).join('、')}。`:'';
@@ -1495,18 +1600,21 @@ function showEnd(){
 
 /* ---- rules ---- */
 function openRules(){
-  const rows=ORDER.split('').map(c=>`<div class="r"><b class="t-${c}">${CARDS[c].n}</b><i>全套 ${FULL[c]} 张</i><br>${CARDS[c].d}</div>`).join('');
+  const o=(V&&V.opts)||(G&&G.opts)||OPTS,full=deckCounts(o);
+  const rows=ORDER.split('').map(c=>`<div class="r"><b class="t-${c}">${CARDS[c].n}</b><i>${c==='K'||c==='B'?(full[c]?'扩充 · 本局 1 张':'扩充 · 本局未开启'):`本局 ${full[c]} 张`}</i><br>${CARDS[c].d}</div>`).join('');
   $('#rulesHost').innerHTML=`<div class="scrim top" id="rulesScrim"><div class="sheet" role="dialog" aria-modal="true">
     <h2>怎么玩</h2>
     <p class="note">每人发 4 张。持有第一发现者的人先出，之后按座位顺序轮流（你的下家在你之后出），每回合打出一张。手里拿着犯人牌的人就是犯人，牌会因为交易、传牌换手，犯人也就跟着换人。</p>
-    <p class="note">犯人把犯人牌留到最后打出，犯人和共犯获胜；有人用侦探或神犬抓住犯人，抓到的人获胜。点每个人面前打出的牌，可以查看效果。</p>
+    <p class="note">犯人把犯人牌留到最后打出，犯人和共犯获胜；有人用侦探、神犬或警部抓住犯人，抓到的人获胜。点每个人面前打出的牌，可以查看效果。</p>
     <div class="tablewrap"><table class="setup"><tr><th>人数</th><th>必放的牌</th><th>其余随机</th></tr>
       <tr><td>3</td><td>第一发现者、犯人、侦探、不在场证明</td><td>8 张</td></tr>
-      <tr><td>4</td><td>同上</td><td>12 张</td></tr>
-      <tr><td>5</td><td>同上 + 共犯</td><td>15 张</td></tr>
-      <tr><td>6</td><td>同上 + 不在场证明 ×2、共犯</td><td>18 张</td></tr>
-      <tr><td>7</td><td>同上 + 不在场证明 ×2、共犯 ×2</td><td>21 张</td></tr>
+      <tr><td>4</td><td>第一发现者、犯人、侦探、不在场证明、共犯</td><td>11 张</td></tr>
+      <tr><td>5</td><td>第一发现者、犯人、侦探、不在场证明 ×2、共犯</td><td>14 张</td></tr>
+      <tr><td>6</td><td>第一发现者、犯人、侦探 ×2、不在场证明 ×2、共犯 ×2</td><td>16 张</td></tr>
+      <tr><td>7</td><td>第一发现者、犯人、侦探 ×2、不在场证明 ×3、共犯 ×2</td><td>19 张</td></tr>
       <tr><td>8</td><td colspan="2">全部 32 张</td></tr></table></div>
+    <p class="note">扩充牌（本游戏的玩法）：警部直接加入牌组，和神犬同时存在；少年替换 1 张目击者，打出时才和犯人对视。8 人局加入警部后多出的 1 张牌会随机去掉一张非必需牌。</p>
+    <p class="note">情报交换和谣言：手牌已经打完的人也参与。情报交换时他们会收到上家的牌，谣言时他们也要从上家抽一张，拿到牌就重新回到出牌顺序里。</p>
     <div class="rules">${rows}</div>
     <div class="row-end"><button class="play" id="btnCloseRules" type="button">好的</button></div>
   </div></div>`;
